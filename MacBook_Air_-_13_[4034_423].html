@@ -1,0 +1,627 @@
+
+<!DOCTYPE html>
+<html lang="pt-Br">
+  <head>
+    <meta charset="utf-8">
+    <meta name="og:type" content="website">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://mfe.ffit.com.br/public-files/js/material-components-web.min.css" rel="stylesheet">
+    <script src="https://mfe.ffit.com.br/public-files/js/material-components-web.min.js"></script>
+    <script src="https://mfe.ffit.com.br/public-files/js/mdc.switch.js"></script>
+    <link rel="stylesheet" href="https://mfe.ffit.com.br/public-files/js/googlefonts_icons.css">
+    <link rel="stylesheet" href="https://mfe.ffit.com.br/public-files/js/googlefonts_css.css">
+    <script crossorigin src="https://mfe.ffit.com.br/public-files/js/react.development.js"></script>
+    <script crossorigin src="https://mfe.ffit.com.br/public-files/js/react-dom.development.js"></script>
+    <script crossorigin src="https://mfe.ffit.com.br/public-files/js/material-ui.development.js"></script>  
+    <link href="https://mfe.ffit.com.br/public-files/fonts/fonts.css" rel="stylesheet">
+    <script src="https://mfe.ffit.com.br/public-files/js/babel.min.js"></script>
+    <script> 
+      const {
+        CircularProgress,
+        Checkbox,
+        Menu,
+        MenuList,
+        MenuItem,
+        Button,
+        ListItemIcon,
+        ListItemText,
+        Chip,
+        Avatar,
+        Typography,
+        IconButton,
+        Icon,
+        Radio,
+        FormControl,
+        RadioGroup,
+        Box,
+        Tabs,
+        Tab,
+        FormControlLabel,
+        TextField,
+        Switch,
+        ThemeProvider,
+        createTheme,
+        InputAdornment,
+        styled,
+        withStyles,
+      } = window['MaterialUI'];
+
+      window.setVariableLaum = (key, value) => {
+        const variables = JSON.parse(localStorage.getItem('FFIT::variables-laum@a6ebadeb-1c1d-4376-a072-42111f55747d') ?? '{}');
+
+        try {
+          variables[key] = JSON.parse(value);
+        } catch(error) {
+          variables[key] = value;
+        }
+
+        localStorage.setItem('FFIT::variables-laum@a6ebadeb-1c1d-4376-a072-42111f55747d', JSON.stringify(variables));
+      };
+
+      window.getVariableLaum = (key) => {
+        const variables = JSON.parse(localStorage.getItem('FFIT::variables-laum@a6ebadeb-1c1d-4376-a072-42111f55747d') ?? '{}');
+
+        if (typeof variables[key] === 'object'){
+          variables[key] = JSON.stringify(variables[key]);
+        }
+
+        return variables[key] ?? null;
+      };
+
+      window.variables = (scope = '') => {
+        const project = 'FFIT::variables-laum@a6ebadeb-1c1d-4376-a072-42111f55747d';
+        const createKey = (key) => `let:${scope}:${key.replace('##', '')}`;
+        const createEvent = (key) => `ffit-event-${key.replace('##', '')}`;
+
+        // TODO: Support librasVideoCode
+
+        return {
+          get(key, callback) {
+            const variables = JSON.parse(localStorage.getItem(project) ?? '{}');
+
+            key = createKey(key);
+
+            if (typeof variables[key] === 'object'){
+              variables[key] = JSON.stringify(variables[key]);
+            }
+
+            const value = variables[key] ?? null; 
+
+            callback?.(value);
+
+            return value;
+          },
+          set(key, value, callback) {
+            const variables = JSON.parse(localStorage.getItem(project) ?? '{}');
+            const variable = createKey(key);
+            const event = createEvent(key);
+
+            try {
+              variables[variable] = JSON.parse(value);
+            } catch(error) {
+              variables[variable] = value;
+            }
+
+            localStorage.setItem(project, JSON.stringify(variables));
+
+            window.dispatchEvent(new Event(event));
+
+            callback?.();
+          },
+          listen(key, callback) {
+            key = createEvent(key);
+
+            window.addEventListener(key, () => {
+              const value = this.get(key);
+
+              callback?.(value);
+            });
+          },
+          process(input, event = {}) {
+            if (input == null) return input;
+
+            if (typeof input === 'string') {
+              try {
+                if (input.trim().startsWith('{') || input.trim().startsWith('[')) {
+                  try {
+                    return this.process(JSON.parse(input), event);
+                  } catch (e) {
+                    const convertToValidJSON = (str) => {
+                      return str
+                        .trim()
+                        .replace(/\n/g, '')
+                        .replace(/([{,]\s*)([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":')
+                        .replace(/'/g, '"')
+                        .replace(/:\s*([{[])/g, ':"$1')
+                        .replace(/([}\]])\s*([,}])/g, '$1"$2')
+                        .replace(/""+/g, '"')
+                        .replace(/"[{[]"/g, (match) => match.replace(/"/g, ''))
+                        .replace(/"[}\]]"/g, (match) => match.replace(/"/g, ''));
+                    };
+
+                    const validJSON = convertToValidJSON(input);
+                    return this.process(JSON.parse(validJSON), event);
+                  }
+                }
+              } catch (e) {}
+            }
+
+            if (typeof input === 'object') {
+              const processedObject = {};
+              for (const key in input) {
+                processedObject[key] = this.process(input[key], event);
+              }
+              return processedObject;
+            }
+
+            if (typeof input !== 'string') return input;
+
+            function evaluateComplexExpression(expression) {
+              const matchBase = expression.match(/^(##[a-zA-Z0-9_]+|FFIT_EVENT_RESPONSE)/);
+              if (!matchBase) return expression;
+
+              const base = matchBase[1];
+              let value;
+
+              if (base === 'FFIT_EVENT_RESPONSE') {
+                value = event;
+              } else if (base.startsWith('##')) {
+                const variable = base.substring(2);
+                try {
+                  value = JSON.parse(this.get(variable));
+                } catch (e) {
+                  value = this.get(variable);
+                }
+              }
+
+              if (expression === base) return value;
+
+              const remainingPath = expression.substring(base.length);
+              const parts = remainingPath.match(/[.][\w$_-]+|\[[^\]]+\]/g) || [];
+
+              try {
+                for (let part of parts) {
+                  if (!value) return undefined;
+                  if (part.startsWith('.')) {
+                    value = value[part.substring(1)];
+                  } else if (part.startsWith('[')) {
+                    const index = part.replace(/[\[\]'"`]/g, '');
+                    value = value[Number(index) || index];
+                  }
+                }
+                return value;
+              } catch (e) {
+                console.error('Error processing path:', e);
+                return undefined;
+              }
+            }
+
+            const expressionRegex = /(##[a-zA-Z0-9_]+(?:\[[\'\"][^\'\"]]+[\'\"]|\[[^\]]+\])*(?:\.[\w$_-]+(?:\[[\'\"][^\'\"]]+[\'\"]|\[[^\]]+\])*)*|FFIT_EVENT_RESPONSE(?:\[[\'\"][^\'\"]]+[\'\"]|\[[^\]]+\])*(?:\.[\w$_-]+(?:\[[\'\"][^\'\"]]+[\'\"]|\[[^\]]+\])*)*)/g;
+
+            let result = input.replace(expressionRegex, (match) => {
+              const value = evaluateComplexExpression.call(this, match);
+              
+              if (value === undefined || value === null) {
+                return '';
+              }
+
+              if (typeof value === 'object') {
+                if (match === input) {
+                  return value;
+                }
+                return JSON.stringify(value);
+              }
+
+              return String(value);
+            });
+
+            if (input.match(expressionRegex)?.[0] === input) {
+              const value = evaluateComplexExpression.call(this, input);
+              if (typeof value === 'object') {
+                return value;
+              }
+            }
+
+            if (!isNaN(result) && result.trim() !== '') {
+              return Number(result);
+            }
+
+            return result;
+          }
+        };
+      };
+
+      window.jsInterface = (scope = '') => {
+        const variables = window.variables(scope);
+        const createEvent = (key) => `ffit-event-${key.replace('##', '')}`;
+
+        return {
+          variable: {
+            get(key, callback) {
+              const value = variables.get(key);
+
+              callback?.(value);
+              
+              return value;
+            },
+            set(key, value) {
+              variables.set(key, value);
+            },
+            listen(key, callback) {
+              const event = createEvent(key);
+
+              window.addEventListener(event, () => {
+                const value = variables.get(key);
+
+                callback?.(value);
+              });
+            }
+          },
+          event: {
+            listen(event, callback) {
+              window.addEventListener('message', (e) => {
+                if (!e?.data?.event) return;
+
+                if (e?.data?.event === event) {
+                  callback(e?.data?.info ?? {});
+                }
+              });
+            },
+            send(event, value) {
+              window.postMessage({ event, info: value }, '*');
+            }
+          }
+        };      
+      };
+
+      window.addEventListener('message', async (e) => {
+        var event = e.data;
+        if(!event) return;
+        try {
+          event = JSON.parse(event);
+          switch (event.type) {
+            case 'prototype-back': {
+              window.open(event.info.prevUrl, '_self');
+              break;
+            }
+            case 'prototype-forward': {
+              window.open(event.info.nextUrl, '_self');
+              break;
+            }
+            default:
+              break;
+          }
+        } catch (e) {}
+      });
+      
+      window.addEventListener('beforeunload', sessionStorage.clear);
+
+      window.addEventListener('resize', () => {
+        const currentWidth = document.getElementById('responsivePage')?.clientWidth;
+        const overlayArr = document.querySelectorAll("div[id*=overlay_id]");
+
+        if (overlayArr.length) {
+          overlayArr.forEach((overlay) => {
+            var backDropRect = overlay.getBoundingClientRect();
+          
+            const anchor = document.getElementById(overlay.getAttribute('data-overlay-anchor-id'));
+            const anchorX = Number(overlay.getAttribute('data-overlay-anchor-x'));
+            const anchorY = Number(overlay.getAttribute('data-overlay-anchor-y'));
+            var anchorRect = anchor?.getBoundingClientRect();
+
+            let leftOverlay = Number(
+              overlay.getAttribute('data-left-overlay')
+            ) || null;
+            let topOverlay = Number(
+              overlay.getAttribute('data-top-overlay')
+            ) || null;
+            
+            if (leftOverlay) {
+              let overlayEl = overlay;
+              while (overlayEl) {
+                overlayEl = overlayEl?.children[0];
+                const id = overlayEl?.getAttribute('id');
+                if (id && !id.includes('_overlay')) {
+                  break;
+                }
+              }
+
+              overlayEl.style.left = String((anchorRect?.left || 0) - anchorX + leftOverlay - (backDropRect?.left || 0)).concat('px');
+              overlayEl.style.top = String((anchorRect?.bottom || 0) - anchorY + topOverlay - (backDropRect?.top || 0)).concat('px');
+            }
+          })
+        }
+      });
+      
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      const mfeId = urlParams.get('id');
+      
+      window.sendMessage = (event, info) => {
+        const mfeEssential = document.querySelector('#id_MacBook_Air___13_4034_423');
+
+        const EVENT_DATA = {
+          mfe: (mfeEssential?.getAttribute('data-mfe-tag')?.replaceAll(/[\[\]]/g, '') || '#MFE_NAME'),
+          mfeId: (mfeId || mfeEssential?.getAttribute('data-mfe-id') || null),
+          event,
+          info,
+        }
+
+        try {
+          window.parent.postMessage(EVENT_DATA, '*');
+        } catch (error) {
+          console.info('Error sending "sendMessage" on desktop: ', error);
+        }
+
+        if ('ReactNativeWebView' in window) { // Avoid giving errors in the browser console
+          try {
+            ReactNativeWebView.postMessage(JSON.stringify(EVENT_DATA));
+          } catch (error) {
+            console.info('Error sending "sendMessage" on mobile: ', error);
+          }
+        }
+      }
+
+      window.onGetSize = () => {
+        const mfeEssentialHeight = document.querySelector('#id_MacBook_Air___13_4034_423').offsetHeight;
+
+        sendMessage('updateSize', {
+          height: mfeEssentialHeight,
+          sentBy: 'mymfe',
+        });
+      }
+
+      window.addEventListener('newUpdateSizeEssential', onGetSize);
+
+      window.handleInitializationOfQueryParameterVariables = () => {
+        const queryParameters = new URLSearchParams(window.location.search);
+        const parameters = {};
+      
+        for (const [key, value] of queryParameters.entries()) {
+          parameters[key] = value;
+        }
+      
+        Object?.entries(parameters)?.map(([key, value]) => {
+          const variableReference = 'let:4034_423:##FFIT_REPLACE##'.replace('##FFIT_REPLACE##', key);
+          const dispatchEventName = 'ffit-event-##FFIT_REPLACE##'.replace('##FFIT_REPLACE##', key);
+
+          window.setVariableLaum(variableReference, value);
+          window.dispatchEvent(new Event(dispatchEventName));
+        });
+      }
+
+      
+    //Start: ffit initialization variable figma
+    
+    (() => {
+      const variables = {"let::VariableID:1707:18575":16,"let::VariableID:1707:18576":24,"let::VariableID:1707:18577":8,"let::VariableID:1707:18578":24,"let::VariableID:1707:18579":16,"let::VariableID:1707:18580":8,"let::VariableID:2046:2577":4,"let::VariableID:2046:2578":"rgba(0,31.000000052154064,63.000000044703484,1)","let::VariableID:3265:6649":"rgba(238.00000101327896,238.00000101327896,238.00000101327896,1)","let::VariableID:3265:6650":true};
+
+      for (const reference in variables) {
+        const sessionValue = window.getVariableLaum(reference);
+
+        if (sessionValue === null) {
+          window.setVariableLaum(reference, variables[reference]);
+        }
+      }
+    })();
+    
+    //End: ffit initialization variable figma
+  
+    </script>
+
+    <script type="text/javascript" src="https://mfe.ffit.com.br/public-files/js/ffit-libras-video.js"></script>
+    
+    
+    <script type="text/javascript" src="https://mfe.ffit.com.br/public-files/js/html-to-image.min.js"></script>
+    <script type="text/javascript" src="https://mfe.ffit.com.br/public-files/js/ffit-tracker.min.js"></script>
+  
+
+    
+
+     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4/animate.min.css">
+  <script>
+  (function() {
+    const params = new URLSearchParams(window.location.search).toString();
+    document.write(`<link rel="stylesheet" href="MacBook_Air_-_13_[4034_423].css?${params}">`);
+  })();
+</script>
+    <script type="text/babel" data-type="module">
+      window.addEventListener('message', async (event) => {
+        const data = event.data;
+        if (!data.event) return;
+
+        switch(data.event) {
+          case 'mfe-loaded':
+            setTimeout(() => {
+               
+            }, 500);
+            break;
+          case 'updateSize': {
+             
+            break;
+          }
+          default:
+            break;
+        }
+        
+        
+      });
+    </script>
+</head>
+  <body onload="window.postMessage({event: 'page-loaded'}); sendMessage('mfe-loaded'); handleInitializationOfQueryParameterVariables(); onGetSize();" onresize="onGetSize();">
+    <div id="responsivePage">
+      <div id="pageContent"><div id="id_MacBook_Air___13_4034_423"   >
+  
+        <div id="id_Frame_34_4034_424">
+          <div id="id_4034_424" style="height: 100%; width: 100%;">
+            <script type="text/babel" data-type="module">
+                import "https://unpkg.com/@tailwindcss/browser@4";
+  import React, { useState } from 'https://esm.sh/react';
+  import ReactDOM from 'https://esm.sh/react-dom/client';
+
+  const App = () => {
+    const [count, setCount] = useState(0);
+
+    return (
+      <div className="bg-red-500 p-4 rounded-md">
+        <h1 className="text-2xl font-bold">Contador: {count}</h1>
+        <div className="flex gap-2">
+          <button onClick={() => setCount(count + 1)} className="py-2 px-4 bg-white rounded-md">Incrementar</button>
+          <button onClick={() => setCount(0)} className="py-2 px-4 bg-white rounded-md">Resetar</button>
+        </div>
+      </div>
+    );
+  };
+
+  ReactDOM.createRoot(document.getElementById("id_4034_424")).render(<App />);
+
+            </script>
+          </div>
+        </div>
+        
+  
+        <div id="id_Frame_35_4034_425">
+          <div id="id_4034_425" style="height: 100%; width: 100%;">
+            <script type="text/babel" data-type="module">
+                import "https://unpkg.com/@tailwindcss/browser@4";
+  import { createApp, ref } from 'https://esm.sh/vue@3.4/dist/vue.esm-browser.js';
+  import { ThumbsUp, RefreshCcw, ChartArea } from 'https://esm.sh/lucide-vue-next';
+  import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+  
+  const Graph = {
+    template: `
+      <svg ref="svg"></svg>
+    `,
+    data() {
+      return {};
+    },
+    mounted() {
+      const width = 500;
+      const height = 500;
+      const data = [
+        { date: "24-Apr-07", amount: 93.24 },
+        { date: "25-Apr-07", amount: 95.35 },
+        { date: "26-Apr-07", amount: 98.84 },
+        { date: "27-Apr-07", amount: 99.92 },
+        { date: "30-Apr-07", amount: 99.8 },
+        { date: "1-May-07", amount: 99.47 },
+        { date: "2-May-07", amount: 100.39 },
+        { date: "3-May-07", amount: 100.4 },
+        { date: "4-May-07", amount: 100.81 },
+        { date: "7-May-07", amount: 103.92 },
+        { date: "8-May-07", amount: 105.06 },
+        { date: "9-May-07", amount: 106.88 },
+        { date: "10-May-07", amount: 107.34 },
+      ];
+  
+      const svg = d3.select(this.$refs.svg).attr("width", width).attr("height", height);
+      const g = svg.append("g");
+  
+      //2. Parse the dates
+      const parseTime = d3.timeParse("%d-%b-%y");
+  
+      //3. Creating the Chart Axes
+      const x = d3
+        .scaleTime()
+        .domain(
+          d3.extent(data, function (d) {
+            return parseTime(d.date);
+          })
+        )
+        .rangeRound([0, width]);
+  
+      const y = d3
+        .scaleLinear()
+        .domain(
+          d3.extent(data, function (d) {
+            return d.amount;
+          })
+        )
+        .rangeRound([height, 0]);
+  
+      //4. Creating a Line
+      const line = d3
+        .line()
+        .x(function (d) {
+          return x(parseTime(d.date));
+        })
+        .y(function (d) {
+          return y(d.amount);
+        });
+  
+      //5. Appending the Axes to the Chart
+      g.append("g")
+        .attr("transform", "translate(0," + height + ")")
+        .call(d3.axisBottom(x));
+  
+      g.append("g")
+        .call(d3.axisLeft(y))
+        .append("text")
+        .attr("fill", "#000")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 6)
+        .attr("dy", "0.71em")
+        .attr("text-anchor", "end")
+        .text("Price ($)");
+  
+      //6. Appending a path to the Chart
+      g.append("path")
+        .datum(data)
+        .attr("fill", "none")
+        .attr("stroke", "steelblue")
+        .attr("stroke-width", 1.5)
+        .attr("d", line)
+    },
+  };
+  
+  const App = {
+    components: { ThumbsUp, RefreshCcw, ChartArea, Graph },
+    setup() {
+      const count = ref(0);
+      const animate = ref(false);
+  
+      function increment() {
+        count.value++;
+        animate.value = true;
+        setTimeout(() => animate.value = false, 2000);
+      }
+  
+      return { count, animate, increment };
+    },
+    template: `
+  <div class="p-4 rounded-md flex flex-col gap-10 items-center">
+    <div class="flex gap-4 items-center">
+      <h1 :class="{ 'animate__animated animate__bounce': animate }" class="text-2xl font-bold">Contador: {{ count }}</h1>
+        <button @click="increment" class="flex gap-2 border border-md py-2 px-4 rounded-md cursor-pointer">
+          <ThumbsUp class="animate-ping" />
+          Incrementar
+        </button>
+  
+        <button @click="count = 0" class="flex gap-2 border border-md py-2 px-4 rounded-md cursor-pointer">
+          <RefreshCcw class="animate-spin" />
+          Resetar
+        </button>
+    </div>
+    
+    <h2 class="flex gap-2 items-center text-2xl font-bold">
+      <ChartArea />
+      Vue.js and D3 Line Chart
+    </h2>
+  
+    <Graph />
+  </div>
+  `
+  };
+
+
+createApp(App).mount("#id_4034_425");
+
+            </script>
+          </div>
+        </div>
+        
+<div id="ffit-libras-videos" ffit-key="k6Q4yijDxm6w8QEzIZ1P9Bh8VJswZWXv"></div></div></div>
+    </div>
+  </body>
+</html>
