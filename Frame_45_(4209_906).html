@@ -1504,6 +1504,169 @@
             });
         </script>
 
+  
+          <span id="id_Teste_github_4209_918" tabindex="0" > 
+            <script type="text/babel" data-type="module">
+              function RenderText(){
+                const regex = /##[a-zA-Z_$][a-zA-Z0-9_$]*/g;
+                const textBase = `<span id="id_chars_0_Teste_github_4209_918" class="id_chars_0_Teste_github_4209_918">Teste github</span>`;
+                const [resultText, setResultText] = React.useState(textBase);
+
+                function changeValues() { 
+                  
+          
+    function handleParseObject(input) {
+      if (Array.isArray(input)) {
+        return input.map(handleParseObject);
+      } else if (typeof input === 'object' && input !== null) {
+        return Object.fromEntries(
+          Object.entries(input).map(([key, value]) => [key, handleParseObject(value)])
+        );
+      } else if (typeof input === 'string') {
+        try {
+          return JSON.parse(input);
+        } catch (error) {
+          return input;
+        }
+      }
+      return input;
+    }
+
+    function handleReplaceVariableInString(value) {
+      let result = value;
+      const isObject = typeof result === 'object';
+      
+      try {
+        if (isObject) {
+          result = JSON.stringify(result);
+        }
+
+        result = result.replace(/##[a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*(?:\(\)|\[[^\\[\]]*\])*|\(\s*[^()]*\s*\)|\(.*\))*/g, (firstMatch) => {
+          let processedFirstMatch = firstMatch;
+
+          processedFirstMatch = processedFirstMatch.replace(/##[a-zA-Z_$][a-zA-Z0-9_$]*/g, (secondMatch) => {
+            const storageValue = window.getVariableLaum("let::" + secondMatch.slice(2));
+
+            if (storageValue === null) {
+              return secondMatch;
+            }
+
+            let processedSecondMatch = storageValue;
+
+            try {
+              JSON.parse(processedSecondMatch);
+            } catch (error) {
+              processedSecondMatch = `"${processedSecondMatch}"`;
+            }
+
+            return processedSecondMatch;
+          });
+
+          try {
+            const isPattern_DD_MM_YYYY = /^(0[1-9]|[12][0-9]|3[01])(\/|-)(0[1-9]|1[0-2])(\/|-)(\d{4})$/.test(processedFirstMatch); 
+
+            if (isPattern_DD_MM_YYYY) {
+              processedFirstMatch = `"${processedFirstMatch}"`;
+            }
+
+            processedFirstMatch = eval(`(${processedFirstMatch})`);
+
+            if (typeof processedFirstMatch === 'object') {
+              return JSON.stringify(processedFirstMatch);
+            } else {
+              return processedFirstMatch;
+            }
+          } catch (error) {
+            return processedFirstMatch;
+          }
+        });
+
+        const isUrl = /^(https?|ftp):\/\/[^\s/$.?#].[^\s]*$/.test(result);
+
+        const isIPv4 = /^(https?):\/\/(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}/gm.test(result);
+
+        const ipv4WithPort = /^(https?):\/\/(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}:(\b[0-9]*)/gm.test(result);
+
+        if (isUrl && !isIPv4 && !ipv4WithPort) {
+          result = (new URL(result)).href;
+        }
+
+        const isPattern_DD_MM_YYYY = /^(0[1-9]|[12][0-9]|3[01])(\/|-)(0[1-9]|1[0-2])(\/|-)(\d{4})$/.test(result); 
+
+        if (isPattern_DD_MM_YYYY) {
+          result = `"${result}"`;
+        }
+
+        result = eval(`(${result})`);
+
+        result = isObject ? JSON.parse(result) : result;
+      } catch (error) {
+        result = isObject ? JSON.parse(result) : result;
+      }
+
+      return handleParseObject(result);
+    };
+  
+          
+  function handleProcessingComplexVariablesInHtml(htmlString) {
+    const temporaryDiv = document.createElement('div');
+    temporaryDiv.innerHTML = htmlString;
+
+    function handleProcessNodes(node) {
+      node.childNodes.forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          if (typeof handleReplaceVariableInString(child.textContent) === 'object') {
+            child.textContent = JSON.stringify(handleReplaceVariableInString(child.textContent));
+          } else {
+            child.textContent = handleReplaceVariableInString(child.textContent);
+          }
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          handleProcessNodes(child);
+        }
+      });
+    }
+
+    handleProcessNodes(temporaryDiv);
+
+    return temporaryDiv.innerHTML;
+  }
+
+          return handleProcessingComplexVariablesInHtml(textBase);
+          
+                }
+
+                const onText = () => setResultText(changeValues());
+                
+                React.useEffect(() => {
+                  
+                  return () => {
+                    
+                  }
+                }, []);
+
+                React.useEffect(() => {
+                  
+                }, []);
+
+                return (
+                  <div
+                    id="id_Teste_github_4209_918_vertical_align"
+                    dangerouslySetInnerHTML={{__html: resultText}}
+                  ></div>
+                );
+              }
+          
+              ReactDOM.render(
+                <RenderText />,
+                document.getElementById("id_Teste_github_4209_918")
+              );
+
+              
+            </script>
+          </span>
+
+          
+          
 <div id="ffit-libras-videos" ffit-key="k6Q4yijDxm6w8QEzIZ1P9Bh8VJswZWXv"></div></div></div>
     </main>
   </body>
