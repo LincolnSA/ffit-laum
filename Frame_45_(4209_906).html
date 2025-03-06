@@ -1,0 +1,1510 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <title>Frame 45</title>
+    <meta charset="utf-8">
+    <meta name="og:type" content="website">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://mfe.ffit.com.br/public-files/js/material-components-web.min.css" rel="stylesheet">
+    <script src="https://mfe.ffit.com.br/public-files/js/material-components-web.min.js"></script>
+    <script src="https://mfe.ffit.com.br/public-files/js/mdc.switch.js"></script>
+    <link rel="stylesheet" href="https://mfe.ffit.com.br/public-files/js/googlefonts_icons.css">
+    <link rel="stylesheet" href="https://mfe.ffit.com.br/public-files/js/googlefonts_css.css">
+    <script crossorigin src="https://mfe.ffit.com.br/public-files/js/react.development.js"></script>
+    <script crossorigin src="https://mfe.ffit.com.br/public-files/js/react-dom.development.js"></script>
+    <script crossorigin src="https://mfe.ffit.com.br/public-files/js/material-ui.development.js"></script>  
+    <link href="https://mfe.ffit.com.br/public-files/fonts/fonts.css" rel="stylesheet">
+    <script src="https://mfe.ffit.com.br/public-files/js/babel.min.js"></script>
+    <script> 
+      const {
+        CircularProgress,
+        Checkbox,
+        Menu,
+        MenuList,
+        MenuItem,
+        Button,
+        ListItemIcon,
+        ListItemText,
+        Chip,
+        Avatar,
+        Typography,
+        IconButton,
+        Icon,
+        Radio,
+        FormControl,
+        RadioGroup,
+        Box,
+        Tabs,
+        Tab,
+        FormControlLabel,
+        TextField,
+        Switch,
+        ThemeProvider,
+        createTheme,
+        InputAdornment,
+        styled,
+        withStyles,
+      } = window['MaterialUI'];
+
+      window.setVariableLaum = (key, value) => {
+        const variables = JSON.parse(localStorage.getItem('FFIT::variables-laum@bee3b0c3-4ad5-41b1-b6dd-a5aec589d20e') ?? '{}');
+
+        try {
+          variables[key] = JSON.parse(value);
+        } catch(error) {
+          variables[key] = value;
+        }
+
+        localStorage.setItem('FFIT::variables-laum@bee3b0c3-4ad5-41b1-b6dd-a5aec589d20e', JSON.stringify(variables));
+      };
+
+      window.getVariableLaum = (key) => {
+        const variables = JSON.parse(localStorage.getItem('FFIT::variables-laum@bee3b0c3-4ad5-41b1-b6dd-a5aec589d20e') ?? '{}');
+
+        if (typeof variables[key] === 'object'){
+          variables[key] = JSON.stringify(variables[key]);
+        }
+
+        return variables[key] ?? null;
+      };
+
+      window.variables = (scope = '') => {
+        const project = 'FFIT::variables-laum@bee3b0c3-4ad5-41b1-b6dd-a5aec589d20e';
+        const createKey = (key) => `let:${scope}:${key.replace('##', '')}`;
+        const createEvent = (key) => `ffit-event-${key.replace('##', '')}`;
+
+        // TODO: Support librasVideoCode
+
+        return {
+          get(key, callback) {
+            const variables = JSON.parse(localStorage.getItem(project) ?? '{}');
+
+            key = createKey(key);
+
+            if (typeof variables[key] === 'object'){
+              variables[key] = JSON.stringify(variables[key]);
+            }
+
+            const value = variables[key] ?? null; 
+
+            callback?.(value);
+
+            return value;
+          },
+          set(key, value, callback) {
+            const variables = JSON.parse(localStorage.getItem(project) ?? '{}');
+            const variable = createKey(key);
+            const event = createEvent(key);
+
+            try {
+              variables[variable] = JSON.parse(value);
+            } catch(error) {
+              variables[variable] = value;
+            }
+
+            localStorage.setItem(project, JSON.stringify(variables));
+
+            window.dispatchEvent(new Event(event));
+
+            callback?.();
+          },
+          listen(key, callback) {
+            key = createEvent(key);
+
+            window.addEventListener(key, () => {
+              const value = this.get(key);
+
+              callback?.(value);
+            });
+          },
+          process(input, event = {}) {
+            if (input == null) return input;
+
+            if (typeof input === 'string') {
+              try {
+                if (input.trim().startsWith('{') || input.trim().startsWith('[')) {
+                  try {
+                    return this.process(JSON.parse(input), event);
+                  } catch (e) {
+                    const convertToValidJSON = (str) => {
+                      return str
+                        .trim()
+                        .replace(/\n/g, '')
+                        .replace(/([{,]\s*)([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":')
+                        .replace(/'/g, '"')
+                        .replace(/:\s*([{[])/g, ':"$1')
+                        .replace(/([}\]])\s*([,}])/g, '$1"$2')
+                        .replace(/""+/g, '"')
+                        .replace(/"[{[]"/g, (match) => match.replace(/"/g, ''))
+                        .replace(/"[}\]]"/g, (match) => match.replace(/"/g, ''));
+                    };
+
+                    const validJSON = convertToValidJSON(input);
+                    return this.process(JSON.parse(validJSON), event);
+                  }
+                }
+              } catch (e) {}
+            }
+
+            if (typeof input === 'object') {
+              const processedObject = {};
+              for (const key in input) {
+                processedObject[key] = this.process(input[key], event);
+              }
+              return processedObject;
+            }
+
+            if (typeof input !== 'string') return input;
+
+            function evaluateComplexExpression(expression) {
+              const matchBase = expression.match(/^(##[a-zA-Z0-9_]+|FFIT_EVENT_RESPONSE)/);
+              if (!matchBase) return expression;
+
+              const base = matchBase[1];
+              let value;
+
+              if (base === 'FFIT_EVENT_RESPONSE') {
+                value = event;
+              } else if (base.startsWith('##')) {
+                const variable = base.substring(2);
+                try {
+                  value = JSON.parse(this.get(variable));
+                } catch (e) {
+                  value = this.get(variable);
+                }
+              }
+
+              if (expression === base) return value;
+
+              const remainingPath = expression.substring(base.length);
+              const parts = remainingPath.match(/[.][\w$_-]+|\[[^\]]+\]/g) || [];
+
+              try {
+                for (let part of parts) {
+                  if (!value) return undefined;
+                  if (part.startsWith('.')) {
+                    value = value[part.substring(1)];
+                  } else if (part.startsWith('[')) {
+                    const index = part.replace(/[\[\]'"`]/g, '');
+                    value = value[Number(index) || index];
+                  }
+                }
+                return value;
+              } catch (e) {
+                console.error('Error processing path:', e);
+                return undefined;
+              }
+            }
+
+            const expressionRegex = /(##[a-zA-Z0-9_]+(?:\[[\'\"][^\'\"]]+[\'\"]|\[[^\]]+\])*(?:\.[\w$_-]+(?:\[[\'\"][^\'\"]]+[\'\"]|\[[^\]]+\])*)*|FFIT_EVENT_RESPONSE(?:\[[\'\"][^\'\"]]+[\'\"]|\[[^\]]+\])*(?:\.[\w$_-]+(?:\[[\'\"][^\'\"]]+[\'\"]|\[[^\]]+\])*)*)/g;
+
+            let result = input.replace(expressionRegex, (match) => {
+              const value = evaluateComplexExpression.call(this, match);
+              
+              if (value === undefined || value === null) {
+                return '';
+              }
+
+              if (typeof value === 'object') {
+                if (match === input) {
+                  return value;
+                }
+                return JSON.stringify(value);
+              }
+
+              return String(value);
+            });
+
+            if (input.match(expressionRegex)?.[0] === input) {
+              const value = evaluateComplexExpression.call(this, input);
+              if (typeof value === 'object') {
+                return value;
+              }
+            }
+
+            if (!isNaN(result) && result.trim() !== '') {
+              return Number(result);
+            }
+
+            return result;
+          }
+        };
+      };
+
+      window.jsInterface = (scope = '') => {
+        const variables = window.variables(scope);
+        const createEvent = (key) => `ffit-event-${key.replace('##', '')}`;
+
+        return {
+          variable: {
+            get(key, callback) {
+              const value = variables.get(key);
+
+              callback?.(value);
+              
+              return value;
+            },
+            set(key, value) {
+              variables.set(key, value);
+            },
+            listen(key, callback) {
+              const event = createEvent(key);
+
+              window.addEventListener(event, () => {
+                const value = variables.get(key);
+
+                callback?.(value);
+              });
+            }
+          },
+          event: {
+            listen(event, callback) {
+              window.addEventListener('message', (e) => {
+                if (!e?.data?.event) return;
+
+                if (e?.data?.event === event) {
+                  callback(e?.data?.info ?? {});
+                }
+              });
+            },
+            send(event, value) {
+              window.postMessage({ event, info: value }, '*');
+            }
+          }
+        };      
+      };
+
+      window.addEventListener('message', async (e) => {
+        var event = e.data;
+        if(!event) return;
+        try {
+          event = JSON.parse(event);
+          switch (event.type) {
+            case 'prototype-back': {
+              window.open(event.info.prevUrl, '_self');
+              break;
+            }
+            case 'prototype-forward': {
+              window.open(event.info.nextUrl, '_self');
+              break;
+            }
+            default:
+              break;
+          }
+        } catch (e) {}
+      });
+      
+      window.addEventListener('beforeunload', sessionStorage.clear);
+
+      window.addEventListener('resize', () => {
+        const currentWidth = document.getElementById('responsivePage')?.clientWidth;
+        const overlayArr = document.querySelectorAll("div[id*=overlay_id]");
+
+        if (overlayArr.length) {
+          overlayArr.forEach((overlay) => {
+            var backDropRect = overlay.getBoundingClientRect();
+          
+            const anchor = document.getElementById(overlay.getAttribute('data-overlay-anchor-id'));
+            const anchorX = Number(overlay.getAttribute('data-overlay-anchor-x'));
+            const anchorY = Number(overlay.getAttribute('data-overlay-anchor-y'));
+            var anchorRect = anchor?.getBoundingClientRect();
+
+            let leftOverlay = Number(
+              overlay.getAttribute('data-left-overlay')
+            ) || null;
+            let topOverlay = Number(
+              overlay.getAttribute('data-top-overlay')
+            ) || null;
+            
+            if (leftOverlay) {
+              let overlayEl = overlay;
+              while (overlayEl) {
+                overlayEl = overlayEl?.children[0];
+                const id = overlayEl?.getAttribute('id');
+                if (id && !id.includes('_overlay')) {
+                  break;
+                }
+              }
+
+              overlayEl.style.left = String((anchorRect?.left || 0) - anchorX + leftOverlay - (backDropRect?.left || 0)).concat('px');
+              overlayEl.style.top = String((anchorRect?.bottom || 0) - anchorY + topOverlay - (backDropRect?.top || 0)).concat('px');
+            }
+          })
+        }
+      });
+      
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      const mfeId = urlParams.get('id');
+      
+      window.sendMessage = (event, info) => {
+        const mfeEssential = document.querySelector('#id_Frame_45_4209_906');
+
+        const EVENT_DATA = {
+          mfe: (mfeEssential?.getAttribute('data-mfe-tag')?.replaceAll(/[\[\]]/g, '') || '#MFE_NAME'),
+          mfeId: (mfeId || mfeEssential?.getAttribute('data-mfe-id') || null),
+          event,
+          info,
+        }
+
+        try {
+          window.parent.postMessage(EVENT_DATA, '*');
+        } catch (error) {
+          console.info('Error sending "sendMessage" on desktop: ', error);
+        }
+
+        if ('ReactNativeWebView' in window) { // Avoid giving errors in the browser console
+          try {
+            ReactNativeWebView.postMessage(JSON.stringify(EVENT_DATA));
+          } catch (error) {
+            console.info('Error sending "sendMessage" on mobile: ', error);
+          }
+        }
+      }
+
+      window.onGetSize = () => {
+        const mfeEssentialHeight = document.querySelector('#id_Frame_45_4209_906').offsetHeight;
+
+        sendMessage('updateSize', {
+          height: mfeEssentialHeight,
+          sentBy: 'mymfe',
+        });
+      }
+
+      window.addEventListener('newUpdateSizeEssential', onGetSize);
+
+      window.handleInitializationOfQueryParameterVariables = () => {
+        const queryParameters = new URLSearchParams(window.location.search);
+        const parameters = {};
+      
+        for (const [key, value] of queryParameters.entries()) {
+          parameters[key] = value;
+        }
+      
+        Object?.entries(parameters)?.map(([key, value]) => {
+          const variableReference = 'let:4209_906:##FFIT_REPLACE##'.replace('##FFIT_REPLACE##', key);
+          const dispatchEventName = 'ffit-event-##FFIT_REPLACE##'.replace('##FFIT_REPLACE##', key);
+
+          window.setVariableLaum(variableReference, value);
+          window.dispatchEvent(new Event(dispatchEventName));
+        });
+      }
+
+      
+    //Start: ffit initialization variable figma
+    
+    (() => {
+      const variables = {"let::VariableID:1707:18575":16,"let::VariableID:1707:18576":24,"let::VariableID:1707:18577":8,"let::VariableID:1707:18578":24,"let::VariableID:1707:18579":16,"let::VariableID:1707:18580":8,"let::VariableID:2046:2577":4,"let::VariableID:2046:2578":"rgba(0,31.000000052154064,63.000000044703484,1)","let::VariableID:3265:6649":"rgba(238.00000101327896,238.00000101327896,238.00000101327896,1)","let::VariableID:3265:6650":true};
+
+      for (const reference in variables) {
+        const sessionValue = window.getVariableLaum(reference);
+
+        if (sessionValue === null) {
+          window.setVariableLaum(reference, variables[reference]);
+        }
+      }
+    })();
+    
+    //End: ffit initialization variable figma
+  
+    </script>
+
+    <script type="text/javascript" src="https://mfe.ffit.com.br/public-files/js/ffit-libras-video.js"></script>
+    
+    
+    <script type="text/javascript" src="https://mfe.ffit.com.br/public-files/js/html-to-image.min.js"></script>
+    <script type="text/javascript" src="https://mfe.ffit.com.br/public-files/js/ffit-tracker.min.js"></script>
+  
+
+    
+
+    
+  <script>
+  (function() {
+    const params = new URLSearchParams(window.location.search).toString();
+    document.write(`<link rel="stylesheet" href="Frame_45_(4209_906).css?${params}">`);
+  })();
+</script>
+    <script type="text/babel" data-type="module">
+      window.addEventListener('message', async (event) => {
+        const data = event.data;
+        if (!data.event) return;
+
+        switch(data.event) {
+          case 'mfe-loaded':
+            setTimeout(() => {
+               
+            }, 500);
+            break;
+          case 'updateSize': {
+             
+            break;
+          }
+          default:
+            break;
+        }
+        
+        
+      });
+    </script>
+</head>
+  <body onload="window.postMessage({event: 'page-loaded'}); sendMessage('mfe-loaded'); handleInitializationOfQueryParameterVariables(); onGetSize();" onresize="onGetSize();">
+    <main id="responsivePage">
+      <h1 id="pageTitle">Frame 45</h1>
+      <div id="pageContent"><div id="id_Frame_45_4209_906"   >
+  
+          <span id="id_Alert_4209_907" tabindex="0" > 
+            <script type="text/babel" data-type="module">
+              function RenderText(){
+                const regex = /##[a-zA-Z_$][a-zA-Z0-9_$]*/g;
+                const textBase = `<span id="id_chars_0_Alert_4209_907" class="id_chars_0_Alert_4209_907">Alert</span>`;
+                const [resultText, setResultText] = React.useState(textBase);
+
+                function changeValues() { 
+                  
+          
+    function handleParseObject(input) {
+      if (Array.isArray(input)) {
+        return input.map(handleParseObject);
+      } else if (typeof input === 'object' && input !== null) {
+        return Object.fromEntries(
+          Object.entries(input).map(([key, value]) => [key, handleParseObject(value)])
+        );
+      } else if (typeof input === 'string') {
+        try {
+          return JSON.parse(input);
+        } catch (error) {
+          return input;
+        }
+      }
+      return input;
+    }
+
+    function handleReplaceVariableInString(value) {
+      let result = value;
+      const isObject = typeof result === 'object';
+      
+      try {
+        if (isObject) {
+          result = JSON.stringify(result);
+        }
+
+        result = result.replace(/##[a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*(?:\(\)|\[[^\\[\]]*\])*|\(\s*[^()]*\s*\)|\(.*\))*/g, (firstMatch) => {
+          let processedFirstMatch = firstMatch;
+
+          processedFirstMatch = processedFirstMatch.replace(/##[a-zA-Z_$][a-zA-Z0-9_$]*/g, (secondMatch) => {
+            const storageValue = window.getVariableLaum("let::" + secondMatch.slice(2));
+
+            if (storageValue === null) {
+              return secondMatch;
+            }
+
+            let processedSecondMatch = storageValue;
+
+            try {
+              JSON.parse(processedSecondMatch);
+            } catch (error) {
+              processedSecondMatch = `"${processedSecondMatch}"`;
+            }
+
+            return processedSecondMatch;
+          });
+
+          try {
+            const isPattern_DD_MM_YYYY = /^(0[1-9]|[12][0-9]|3[01])(\/|-)(0[1-9]|1[0-2])(\/|-)(\d{4})$/.test(processedFirstMatch); 
+
+            if (isPattern_DD_MM_YYYY) {
+              processedFirstMatch = `"${processedFirstMatch}"`;
+            }
+
+            processedFirstMatch = eval(`(${processedFirstMatch})`);
+
+            if (typeof processedFirstMatch === 'object') {
+              return JSON.stringify(processedFirstMatch);
+            } else {
+              return processedFirstMatch;
+            }
+          } catch (error) {
+            return processedFirstMatch;
+          }
+        });
+
+        const isUrl = /^(https?|ftp):\/\/[^\s/$.?#].[^\s]*$/.test(result);
+
+        const isIPv4 = /^(https?):\/\/(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}/gm.test(result);
+
+        const ipv4WithPort = /^(https?):\/\/(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}:(\b[0-9]*)/gm.test(result);
+
+        if (isUrl && !isIPv4 && !ipv4WithPort) {
+          result = (new URL(result)).href;
+        }
+
+        const isPattern_DD_MM_YYYY = /^(0[1-9]|[12][0-9]|3[01])(\/|-)(0[1-9]|1[0-2])(\/|-)(\d{4})$/.test(result); 
+
+        if (isPattern_DD_MM_YYYY) {
+          result = `"${result}"`;
+        }
+
+        result = eval(`(${result})`);
+
+        result = isObject ? JSON.parse(result) : result;
+      } catch (error) {
+        result = isObject ? JSON.parse(result) : result;
+      }
+
+      return handleParseObject(result);
+    };
+  
+          
+  function handleProcessingComplexVariablesInHtml(htmlString) {
+    const temporaryDiv = document.createElement('div');
+    temporaryDiv.innerHTML = htmlString;
+
+    function handleProcessNodes(node) {
+      node.childNodes.forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          if (typeof handleReplaceVariableInString(child.textContent) === 'object') {
+            child.textContent = JSON.stringify(handleReplaceVariableInString(child.textContent));
+          } else {
+            child.textContent = handleReplaceVariableInString(child.textContent);
+          }
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          handleProcessNodes(child);
+        }
+      });
+    }
+
+    handleProcessNodes(temporaryDiv);
+
+    return temporaryDiv.innerHTML;
+  }
+
+          return handleProcessingComplexVariablesInHtml(textBase);
+          
+                }
+
+                const onText = () => setResultText(changeValues());
+                
+                React.useEffect(() => {
+                  
+                  return () => {
+                    
+                  }
+                }, []);
+
+                React.useEffect(() => {
+                  
+                }, []);
+
+                return (
+                  <div
+                    id="id_Alert_4209_907_vertical_align"
+                    dangerouslySetInnerHTML={{__html: resultText}}
+                  ></div>
+                );
+              }
+          
+              ReactDOM.render(
+                <RenderText />,
+                document.getElementById("id_Alert_4209_907")
+              );
+
+              
+            </script>
+          </span>
+
+          
+          <script type="text/babel" data-type="module">
+          document
+            .getElementById('id_Alert_4209_907')
+            .addEventListener('click', () => {
+              (async () => { 
+    try {
+      function getVariableReference(varName)
+  { return `let::${varName}`; }
+
+
+      const parameters = [].map(parameter => {
+        if (parameter === 'FFIT_EVENT_RESPONSE') {
+          return data?.info ?? {}; 
+        }
+
+        if (parameter.startsWith('##')) {
+          const value = window.getVariableLaum(getVariableReference(parameter.replace('##','')));
+
+          try {
+            return JSON.parse(value);
+          } catch (error) {
+            return value;
+          }
+        }
+
+        try {
+          return eval(`(${parameter})`);
+        } catch (error) {
+          return parameter;
+        }
+      });
+
+      const fillResult = (result) => {
+        result = typeof result === 'object' ? JSON.stringify(result) : result;
+
+        window.setVariableLaum('let::alerta', result);
+        window.dispatchEvent(new Event('ffit-event-alerta'));
+
+        const frameId = '0'.replace(":", "-");
+
+        if (frameId) {
+          const elementIframe = document.getElementById(frameId);
+          if (elementIframe) {
+            elementIframe.src = elementIframe.getAttribute("src");
+          }
+        }
+      }
+
+      
+        fillResult(  function execute() {
+    alert("Alerta");
+    return null;
+  }  (...parameters));
+        ;
+    } catch (error) {
+      console.error('Error script: ', error);
+    }
+   })();
+            });
+        </script>
+
+  
+          <span id="id_Create_4209_908" tabindex="0" > 
+            <script type="text/babel" data-type="module">
+              function RenderText(){
+                const regex = /##[a-zA-Z_$][a-zA-Z0-9_$]*/g;
+                const textBase = `<span id="id_chars_0_Create_4209_908" class="id_chars_0_Create_4209_908">Create</span>`;
+                const [resultText, setResultText] = React.useState(textBase);
+
+                function changeValues() { 
+                  
+          
+    function handleParseObject(input) {
+      if (Array.isArray(input)) {
+        return input.map(handleParseObject);
+      } else if (typeof input === 'object' && input !== null) {
+        return Object.fromEntries(
+          Object.entries(input).map(([key, value]) => [key, handleParseObject(value)])
+        );
+      } else if (typeof input === 'string') {
+        try {
+          return JSON.parse(input);
+        } catch (error) {
+          return input;
+        }
+      }
+      return input;
+    }
+
+    function handleReplaceVariableInString(value) {
+      let result = value;
+      const isObject = typeof result === 'object';
+      
+      try {
+        if (isObject) {
+          result = JSON.stringify(result);
+        }
+
+        result = result.replace(/##[a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*(?:\(\)|\[[^\\[\]]*\])*|\(\s*[^()]*\s*\)|\(.*\))*/g, (firstMatch) => {
+          let processedFirstMatch = firstMatch;
+
+          processedFirstMatch = processedFirstMatch.replace(/##[a-zA-Z_$][a-zA-Z0-9_$]*/g, (secondMatch) => {
+            const storageValue = window.getVariableLaum("let::" + secondMatch.slice(2));
+
+            if (storageValue === null) {
+              return secondMatch;
+            }
+
+            let processedSecondMatch = storageValue;
+
+            try {
+              JSON.parse(processedSecondMatch);
+            } catch (error) {
+              processedSecondMatch = `"${processedSecondMatch}"`;
+            }
+
+            return processedSecondMatch;
+          });
+
+          try {
+            const isPattern_DD_MM_YYYY = /^(0[1-9]|[12][0-9]|3[01])(\/|-)(0[1-9]|1[0-2])(\/|-)(\d{4})$/.test(processedFirstMatch); 
+
+            if (isPattern_DD_MM_YYYY) {
+              processedFirstMatch = `"${processedFirstMatch}"`;
+            }
+
+            processedFirstMatch = eval(`(${processedFirstMatch})`);
+
+            if (typeof processedFirstMatch === 'object') {
+              return JSON.stringify(processedFirstMatch);
+            } else {
+              return processedFirstMatch;
+            }
+          } catch (error) {
+            return processedFirstMatch;
+          }
+        });
+
+        const isUrl = /^(https?|ftp):\/\/[^\s/$.?#].[^\s]*$/.test(result);
+
+        const isIPv4 = /^(https?):\/\/(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}/gm.test(result);
+
+        const ipv4WithPort = /^(https?):\/\/(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}:(\b[0-9]*)/gm.test(result);
+
+        if (isUrl && !isIPv4 && !ipv4WithPort) {
+          result = (new URL(result)).href;
+        }
+
+        const isPattern_DD_MM_YYYY = /^(0[1-9]|[12][0-9]|3[01])(\/|-)(0[1-9]|1[0-2])(\/|-)(\d{4})$/.test(result); 
+
+        if (isPattern_DD_MM_YYYY) {
+          result = `"${result}"`;
+        }
+
+        result = eval(`(${result})`);
+
+        result = isObject ? JSON.parse(result) : result;
+      } catch (error) {
+        result = isObject ? JSON.parse(result) : result;
+      }
+
+      return handleParseObject(result);
+    };
+  
+          
+  function handleProcessingComplexVariablesInHtml(htmlString) {
+    const temporaryDiv = document.createElement('div');
+    temporaryDiv.innerHTML = htmlString;
+
+    function handleProcessNodes(node) {
+      node.childNodes.forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          if (typeof handleReplaceVariableInString(child.textContent) === 'object') {
+            child.textContent = JSON.stringify(handleReplaceVariableInString(child.textContent));
+          } else {
+            child.textContent = handleReplaceVariableInString(child.textContent);
+          }
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          handleProcessNodes(child);
+        }
+      });
+    }
+
+    handleProcessNodes(temporaryDiv);
+
+    return temporaryDiv.innerHTML;
+  }
+
+          return handleProcessingComplexVariablesInHtml(textBase);
+          
+                }
+
+                const onText = () => setResultText(changeValues());
+                
+                React.useEffect(() => {
+                  
+                  return () => {
+                    
+                  }
+                }, []);
+
+                React.useEffect(() => {
+                  
+                }, []);
+
+                return (
+                  <div
+                    id="id_Create_4209_908_vertical_align"
+                    dangerouslySetInnerHTML={{__html: resultText}}
+                  ></div>
+                );
+              }
+          
+              ReactDOM.render(
+                <RenderText />,
+                document.getElementById("id_Create_4209_908")
+              );
+
+              
+            </script>
+          </span>
+
+          
+          <script type="text/babel" data-type="module">
+          document
+            .getElementById('id_Create_4209_908')
+            .addEventListener('click', () => {
+              (() => { 
+  try {
+    const input = "{\n  \"nome\": \"Lincoln Setúbal\",\n  \"idade\": 26\n}";
+    const event = typeof data == 'undefined' ? {} : data?.info || {};
+    const payload = window.variables('').process(input, event);
+    const url = 'https://mfe.ffit.com.br/api-console-homol/v1/users/YYdsbsmsfTM2Mx272rewhY2QV4e2/entities/hash/90a22db6-4b49-4e20-b11b-67b2fe08b6c0/items/create';
+    
+    const options = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    };
+
+    fetch(url, options)
+      .then((response) => {
+        return response.json();
+      })
+      .then((response) => {
+        if (response.error) {
+          window.postMessage({ event: 'pessoa:create_failure', info: response }, '*');
+        } else {
+          window.postMessage({ event: 'pessoa:create_success', info: response }, '*');
+        }
+        
+        return response;
+      })
+      .catch((error) => {
+        console.error('Error executing create entity item: ', error);
+
+        window.postMessage({ event: 'pessoa:create_failure', info: {} }, '*');
+      });
+  } catch(error){
+    console.error('Error create entity item: ', error);
+  }
+ })();
+            });
+        </script>
+
+  
+          <span id="id_Get_4209_910" tabindex="0" > 
+            <script type="text/babel" data-type="module">
+              function RenderText(){
+                const regex = /##[a-zA-Z_$][a-zA-Z0-9_$]*/g;
+                const textBase = `<span id="id_chars_0_Get_4209_910" class="id_chars_0_Get_4209_910">Get</span>`;
+                const [resultText, setResultText] = React.useState(textBase);
+
+                function changeValues() { 
+                  
+          
+    function handleParseObject(input) {
+      if (Array.isArray(input)) {
+        return input.map(handleParseObject);
+      } else if (typeof input === 'object' && input !== null) {
+        return Object.fromEntries(
+          Object.entries(input).map(([key, value]) => [key, handleParseObject(value)])
+        );
+      } else if (typeof input === 'string') {
+        try {
+          return JSON.parse(input);
+        } catch (error) {
+          return input;
+        }
+      }
+      return input;
+    }
+
+    function handleReplaceVariableInString(value) {
+      let result = value;
+      const isObject = typeof result === 'object';
+      
+      try {
+        if (isObject) {
+          result = JSON.stringify(result);
+        }
+
+        result = result.replace(/##[a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*(?:\(\)|\[[^\\[\]]*\])*|\(\s*[^()]*\s*\)|\(.*\))*/g, (firstMatch) => {
+          let processedFirstMatch = firstMatch;
+
+          processedFirstMatch = processedFirstMatch.replace(/##[a-zA-Z_$][a-zA-Z0-9_$]*/g, (secondMatch) => {
+            const storageValue = window.getVariableLaum("let::" + secondMatch.slice(2));
+
+            if (storageValue === null) {
+              return secondMatch;
+            }
+
+            let processedSecondMatch = storageValue;
+
+            try {
+              JSON.parse(processedSecondMatch);
+            } catch (error) {
+              processedSecondMatch = `"${processedSecondMatch}"`;
+            }
+
+            return processedSecondMatch;
+          });
+
+          try {
+            const isPattern_DD_MM_YYYY = /^(0[1-9]|[12][0-9]|3[01])(\/|-)(0[1-9]|1[0-2])(\/|-)(\d{4})$/.test(processedFirstMatch); 
+
+            if (isPattern_DD_MM_YYYY) {
+              processedFirstMatch = `"${processedFirstMatch}"`;
+            }
+
+            processedFirstMatch = eval(`(${processedFirstMatch})`);
+
+            if (typeof processedFirstMatch === 'object') {
+              return JSON.stringify(processedFirstMatch);
+            } else {
+              return processedFirstMatch;
+            }
+          } catch (error) {
+            return processedFirstMatch;
+          }
+        });
+
+        const isUrl = /^(https?|ftp):\/\/[^\s/$.?#].[^\s]*$/.test(result);
+
+        const isIPv4 = /^(https?):\/\/(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}/gm.test(result);
+
+        const ipv4WithPort = /^(https?):\/\/(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}:(\b[0-9]*)/gm.test(result);
+
+        if (isUrl && !isIPv4 && !ipv4WithPort) {
+          result = (new URL(result)).href;
+        }
+
+        const isPattern_DD_MM_YYYY = /^(0[1-9]|[12][0-9]|3[01])(\/|-)(0[1-9]|1[0-2])(\/|-)(\d{4})$/.test(result); 
+
+        if (isPattern_DD_MM_YYYY) {
+          result = `"${result}"`;
+        }
+
+        result = eval(`(${result})`);
+
+        result = isObject ? JSON.parse(result) : result;
+      } catch (error) {
+        result = isObject ? JSON.parse(result) : result;
+      }
+
+      return handleParseObject(result);
+    };
+  
+          
+  function handleProcessingComplexVariablesInHtml(htmlString) {
+    const temporaryDiv = document.createElement('div');
+    temporaryDiv.innerHTML = htmlString;
+
+    function handleProcessNodes(node) {
+      node.childNodes.forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          if (typeof handleReplaceVariableInString(child.textContent) === 'object') {
+            child.textContent = JSON.stringify(handleReplaceVariableInString(child.textContent));
+          } else {
+            child.textContent = handleReplaceVariableInString(child.textContent);
+          }
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          handleProcessNodes(child);
+        }
+      });
+    }
+
+    handleProcessNodes(temporaryDiv);
+
+    return temporaryDiv.innerHTML;
+  }
+
+          return handleProcessingComplexVariablesInHtml(textBase);
+          
+                }
+
+                const onText = () => setResultText(changeValues());
+                
+                React.useEffect(() => {
+                  
+                  return () => {
+                    
+                  }
+                }, []);
+
+                React.useEffect(() => {
+                  
+                }, []);
+
+                return (
+                  <div
+                    id="id_Get_4209_910_vertical_align"
+                    dangerouslySetInnerHTML={{__html: resultText}}
+                  ></div>
+                );
+              }
+          
+              ReactDOM.render(
+                <RenderText />,
+                document.getElementById("id_Get_4209_910")
+              );
+
+              
+            </script>
+          </span>
+
+          
+          <script type="text/babel" data-type="module">
+          document
+            .getElementById('id_Get_4209_910')
+            .addEventListener('click', () => {
+              (() => { 
+  try {
+    const input = "{}";
+    const event = typeof data == 'undefined' ? {} : data?.info ?? {};
+    const payload = window.variables('').process(input, event);
+    const url = 'https://mfe.ffit.com.br/api-console-homol/v1/users/YYdsbsmsfTM2Mx272rewhY2QV4e2/entities/hash/90a22db6-4b49-4e20-b11b-67b2fe08b6c0/items/get';
+    
+    const options = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filter: payload }),
+    };
+
+    fetch(url, options)
+      .then((response) => {
+        return response.json();
+      })
+      .then((response) => {
+        if (response.error) {
+          window.postMessage({ event: 'pessoa:get_failure', info: response }, '*');
+        } else {
+          window.postMessage({ event: 'pessoa:get_success', info: response }, '*');
+        }
+
+        window.variables('').set('requisicaoPessoa', JSON.stringify(response));
+
+        const frameId = '0'.replace(":", "-");
+
+        if (frameId) {
+          const elementIframe = document.getElementById(frameId);
+          if (elementIframe) {
+            elementIframe.src = elementIframe.getAttribute("src");
+          }
+        }
+
+        return response;
+      })
+      .catch((error) => {
+        console.error('Error executing get entity item: ', error);
+
+        window.postMessage({ event: 'pessoa:get_failure', info: {} }, '*');
+      });
+  } catch(error){
+    console.error('Error get entity item: ', error);
+  }
+ })();
+            });
+        </script>
+
+  
+          <span id="id_Update_4209_912" tabindex="0" > 
+            <script type="text/babel" data-type="module">
+              function RenderText(){
+                const regex = /##[a-zA-Z_$][a-zA-Z0-9_$]*/g;
+                const textBase = `<span id="id_chars_0_Update_4209_912" class="id_chars_0_Update_4209_912">Update</span>`;
+                const [resultText, setResultText] = React.useState(textBase);
+
+                function changeValues() { 
+                  
+          
+    function handleParseObject(input) {
+      if (Array.isArray(input)) {
+        return input.map(handleParseObject);
+      } else if (typeof input === 'object' && input !== null) {
+        return Object.fromEntries(
+          Object.entries(input).map(([key, value]) => [key, handleParseObject(value)])
+        );
+      } else if (typeof input === 'string') {
+        try {
+          return JSON.parse(input);
+        } catch (error) {
+          return input;
+        }
+      }
+      return input;
+    }
+
+    function handleReplaceVariableInString(value) {
+      let result = value;
+      const isObject = typeof result === 'object';
+      
+      try {
+        if (isObject) {
+          result = JSON.stringify(result);
+        }
+
+        result = result.replace(/##[a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*(?:\(\)|\[[^\\[\]]*\])*|\(\s*[^()]*\s*\)|\(.*\))*/g, (firstMatch) => {
+          let processedFirstMatch = firstMatch;
+
+          processedFirstMatch = processedFirstMatch.replace(/##[a-zA-Z_$][a-zA-Z0-9_$]*/g, (secondMatch) => {
+            const storageValue = window.getVariableLaum("let::" + secondMatch.slice(2));
+
+            if (storageValue === null) {
+              return secondMatch;
+            }
+
+            let processedSecondMatch = storageValue;
+
+            try {
+              JSON.parse(processedSecondMatch);
+            } catch (error) {
+              processedSecondMatch = `"${processedSecondMatch}"`;
+            }
+
+            return processedSecondMatch;
+          });
+
+          try {
+            const isPattern_DD_MM_YYYY = /^(0[1-9]|[12][0-9]|3[01])(\/|-)(0[1-9]|1[0-2])(\/|-)(\d{4})$/.test(processedFirstMatch); 
+
+            if (isPattern_DD_MM_YYYY) {
+              processedFirstMatch = `"${processedFirstMatch}"`;
+            }
+
+            processedFirstMatch = eval(`(${processedFirstMatch})`);
+
+            if (typeof processedFirstMatch === 'object') {
+              return JSON.stringify(processedFirstMatch);
+            } else {
+              return processedFirstMatch;
+            }
+          } catch (error) {
+            return processedFirstMatch;
+          }
+        });
+
+        const isUrl = /^(https?|ftp):\/\/[^\s/$.?#].[^\s]*$/.test(result);
+
+        const isIPv4 = /^(https?):\/\/(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}/gm.test(result);
+
+        const ipv4WithPort = /^(https?):\/\/(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}:(\b[0-9]*)/gm.test(result);
+
+        if (isUrl && !isIPv4 && !ipv4WithPort) {
+          result = (new URL(result)).href;
+        }
+
+        const isPattern_DD_MM_YYYY = /^(0[1-9]|[12][0-9]|3[01])(\/|-)(0[1-9]|1[0-2])(\/|-)(\d{4})$/.test(result); 
+
+        if (isPattern_DD_MM_YYYY) {
+          result = `"${result}"`;
+        }
+
+        result = eval(`(${result})`);
+
+        result = isObject ? JSON.parse(result) : result;
+      } catch (error) {
+        result = isObject ? JSON.parse(result) : result;
+      }
+
+      return handleParseObject(result);
+    };
+  
+          
+  function handleProcessingComplexVariablesInHtml(htmlString) {
+    const temporaryDiv = document.createElement('div');
+    temporaryDiv.innerHTML = htmlString;
+
+    function handleProcessNodes(node) {
+      node.childNodes.forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          if (typeof handleReplaceVariableInString(child.textContent) === 'object') {
+            child.textContent = JSON.stringify(handleReplaceVariableInString(child.textContent));
+          } else {
+            child.textContent = handleReplaceVariableInString(child.textContent);
+          }
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          handleProcessNodes(child);
+        }
+      });
+    }
+
+    handleProcessNodes(temporaryDiv);
+
+    return temporaryDiv.innerHTML;
+  }
+
+          return handleProcessingComplexVariablesInHtml(textBase);
+          
+                }
+
+                const onText = () => setResultText(changeValues());
+                
+                React.useEffect(() => {
+                  
+                  return () => {
+                    
+                  }
+                }, []);
+
+                React.useEffect(() => {
+                  
+                }, []);
+
+                return (
+                  <div
+                    id="id_Update_4209_912_vertical_align"
+                    dangerouslySetInnerHTML={{__html: resultText}}
+                  ></div>
+                );
+              }
+          
+              ReactDOM.render(
+                <RenderText />,
+                document.getElementById("id_Update_4209_912")
+              );
+
+              
+            </script>
+          </span>
+
+          
+          <script type="text/babel" data-type="module">
+          document
+            .getElementById('id_Update_4209_912')
+            .addEventListener('click', () => {
+              (() => { 
+  try {
+    const input = "{\n  \"nome\": \"Lincoln SA\"\n}";
+    const event = typeof data == 'undefined' ? {} : data?.info || {};
+    const payload = window.variables('').process(input, event);
+    const url = window.variables('').process('https://mfe.ffit.com.br/api-console-homol/v1/users/YYdsbsmsfTM2Mx272rewhY2QV4e2/entities/hash/90a22db6-4b49-4e20-b11b-67b2fe08b6c0/items/4das654d6a5s/update');
+    
+    const options = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    };
+
+    fetch(url, options)
+      .then((response) => {
+        return response.json();
+      })
+      .then((response) => {
+        if (response.error) {
+          window.postMessage({ event: 'pessoa:update_failure', info: response }, '*');
+        } else {
+          window.postMessage({ event: 'pessoa:update_success', info: response }, '*');
+        }
+        
+        return response;
+      })
+      .catch((error) => {
+        console.error('Error executing update entity item: ', error);
+
+        window.postMessage({ event: 'pessoa:update_failure', info: {} }, '*');
+      });
+  } catch(error){
+    console.error('Error update entity item: ', error);
+  }
+ })();
+            });
+        </script>
+
+  
+          <span id="id_Delete_4209_914" tabindex="0" > 
+            <script type="text/babel" data-type="module">
+              function RenderText(){
+                const regex = /##[a-zA-Z_$][a-zA-Z0-9_$]*/g;
+                const textBase = `<span id="id_chars_0_Delete_4209_914" class="id_chars_0_Delete_4209_914">Delete</span>`;
+                const [resultText, setResultText] = React.useState(textBase);
+
+                function changeValues() { 
+                  
+          
+    function handleParseObject(input) {
+      if (Array.isArray(input)) {
+        return input.map(handleParseObject);
+      } else if (typeof input === 'object' && input !== null) {
+        return Object.fromEntries(
+          Object.entries(input).map(([key, value]) => [key, handleParseObject(value)])
+        );
+      } else if (typeof input === 'string') {
+        try {
+          return JSON.parse(input);
+        } catch (error) {
+          return input;
+        }
+      }
+      return input;
+    }
+
+    function handleReplaceVariableInString(value) {
+      let result = value;
+      const isObject = typeof result === 'object';
+      
+      try {
+        if (isObject) {
+          result = JSON.stringify(result);
+        }
+
+        result = result.replace(/##[a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*(?:\(\)|\[[^\\[\]]*\])*|\(\s*[^()]*\s*\)|\(.*\))*/g, (firstMatch) => {
+          let processedFirstMatch = firstMatch;
+
+          processedFirstMatch = processedFirstMatch.replace(/##[a-zA-Z_$][a-zA-Z0-9_$]*/g, (secondMatch) => {
+            const storageValue = window.getVariableLaum("let::" + secondMatch.slice(2));
+
+            if (storageValue === null) {
+              return secondMatch;
+            }
+
+            let processedSecondMatch = storageValue;
+
+            try {
+              JSON.parse(processedSecondMatch);
+            } catch (error) {
+              processedSecondMatch = `"${processedSecondMatch}"`;
+            }
+
+            return processedSecondMatch;
+          });
+
+          try {
+            const isPattern_DD_MM_YYYY = /^(0[1-9]|[12][0-9]|3[01])(\/|-)(0[1-9]|1[0-2])(\/|-)(\d{4})$/.test(processedFirstMatch); 
+
+            if (isPattern_DD_MM_YYYY) {
+              processedFirstMatch = `"${processedFirstMatch}"`;
+            }
+
+            processedFirstMatch = eval(`(${processedFirstMatch})`);
+
+            if (typeof processedFirstMatch === 'object') {
+              return JSON.stringify(processedFirstMatch);
+            } else {
+              return processedFirstMatch;
+            }
+          } catch (error) {
+            return processedFirstMatch;
+          }
+        });
+
+        const isUrl = /^(https?|ftp):\/\/[^\s/$.?#].[^\s]*$/.test(result);
+
+        const isIPv4 = /^(https?):\/\/(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}/gm.test(result);
+
+        const ipv4WithPort = /^(https?):\/\/(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}:(\b[0-9]*)/gm.test(result);
+
+        if (isUrl && !isIPv4 && !ipv4WithPort) {
+          result = (new URL(result)).href;
+        }
+
+        const isPattern_DD_MM_YYYY = /^(0[1-9]|[12][0-9]|3[01])(\/|-)(0[1-9]|1[0-2])(\/|-)(\d{4})$/.test(result); 
+
+        if (isPattern_DD_MM_YYYY) {
+          result = `"${result}"`;
+        }
+
+        result = eval(`(${result})`);
+
+        result = isObject ? JSON.parse(result) : result;
+      } catch (error) {
+        result = isObject ? JSON.parse(result) : result;
+      }
+
+      return handleParseObject(result);
+    };
+  
+          
+  function handleProcessingComplexVariablesInHtml(htmlString) {
+    const temporaryDiv = document.createElement('div');
+    temporaryDiv.innerHTML = htmlString;
+
+    function handleProcessNodes(node) {
+      node.childNodes.forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          if (typeof handleReplaceVariableInString(child.textContent) === 'object') {
+            child.textContent = JSON.stringify(handleReplaceVariableInString(child.textContent));
+          } else {
+            child.textContent = handleReplaceVariableInString(child.textContent);
+          }
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          handleProcessNodes(child);
+        }
+      });
+    }
+
+    handleProcessNodes(temporaryDiv);
+
+    return temporaryDiv.innerHTML;
+  }
+
+          return handleProcessingComplexVariablesInHtml(textBase);
+          
+                }
+
+                const onText = () => setResultText(changeValues());
+                
+                React.useEffect(() => {
+                  
+                  return () => {
+                    
+                  }
+                }, []);
+
+                React.useEffect(() => {
+                  
+                }, []);
+
+                return (
+                  <div
+                    id="id_Delete_4209_914_vertical_align"
+                    dangerouslySetInnerHTML={{__html: resultText}}
+                  ></div>
+                );
+              }
+          
+              ReactDOM.render(
+                <RenderText />,
+                document.getElementById("id_Delete_4209_914")
+              );
+
+              
+            </script>
+          </span>
+
+          
+          <script type="text/babel" data-type="module">
+          document
+            .getElementById('id_Delete_4209_914')
+            .addEventListener('click', () => {
+              (() => { 
+  try {
+    const input = "{\n  \"nome\": \"Lincoln Setúbal\"\n}";
+    const event = typeof data == 'undefined' ? {} : data?.info || {};
+    const payload = window.variables('').process(input, event);
+    const url = 'https://mfe.ffit.com.br/api-console-homol/v1/users/YYdsbsmsfTM2Mx272rewhY2QV4e2/entities/hash/90a22db6-4b49-4e20-b11b-67b2fe08b6c0/items/delete';
+    
+    const options = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({filter: payload}),
+    };
+
+    fetch(url, options)
+      .then((response) => {
+        return response.json();
+      })
+      .then((response) => {
+        if (response.error) {
+          window.postMessage({ event: 'pessoa:delete_failure', info: response }, '*');
+        } else {
+          window.postMessage({ event: 'pessoa:delete_success', info: response }, '*');
+        }
+
+        return response;
+      })
+      .catch((error) => {
+        console.error('Error executing delete entity item: ', error);
+
+        window.postMessage({ event: 'pessoa:delete_failure', info: {} }, '*');
+      });
+  } catch(error){
+    console.error('Error delete entity item: ', error);
+  }
+ })();
+            });
+        </script>
+
+<div id="ffit-libras-videos" ffit-key="k6Q4yijDxm6w8QEzIZ1P9Bh8VJswZWXv"></div></div></div>
+    </main>
+  </body>
+</html>
